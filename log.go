@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime/debug"
+	"strings"
 
 	"github.com/xaionaro-go/errors"
 )
@@ -18,36 +20,69 @@ func init() {
 	_logger = &logger{Logger: log.New(os.Stderr, fmt.Sprintf("[%v] ", os.Args[0]), 0)}
 }
 
+func (l *logger) getCurrentLine() string {
+	stack := string(debug.Stack())
+	stackLines := strings.Split(stack, "\n")
+	startLineIdx0 := 0
+	foundMe := false
+	for idx, line := range stackLines {
+		if strings.Index(line, "github.com/xaionaro-go/log") != -1 {
+			startLineIdx0 = idx
+			foundMe = true
+			break
+		}
+	}
+	if !foundMe {
+		return ""
+	}
+	foundNotMe := false
+	startLineIdx1 := 0
+	for idx, line := range stackLines[startLineIdx0:] {
+		if strings.Index(line, "github.com/xaionaro-go/log") == -1 {
+			startLineIdx1 = idx
+			foundNotMe = true
+			break
+		}
+	}
+	if !foundNotMe {
+		return ""
+	}
+	theLine := stackLines[startLineIdx0 + startLineIdx1 + 1]
+	theLine = strings.Split(strings.Trim(theLine, " \t"), " ")[0]
+	thePath := strings.Split(theLine, "/")
+	return thePath[len(thePath)-1]
+}
+
 func (l *logger) Fatal(v ...interface{}) {
-	l.Logger.Fatal(append([]interface{}{"[fatal] "}, v...)...)
+	l.Logger.Fatal(append([]interface{}{"[fatal] "+l.getCurrentLine()+": "}, v...)...)
 }
 
 func (l *logger) Panic(v ...interface{}) {
-	l.Logger.Panic(append([]interface{}{"[panic] "}, v...)...)
+	l.Logger.Panic(append([]interface{}{"[panic] "+l.getCurrentLine()+": "}, v...)...)
 }
 
 func (l *logger) Debug(v ...interface{}) {
-	l.Logger.Print(append([]interface{}{"[debug] "}, v...)...)
+	l.Logger.Print(append([]interface{}{"[debug] "+l.getCurrentLine()+": "}, v...)...)
 }
 
 func (l *logger) Debugln(v ...interface{}) {
-	l.Logger.Println(v...)
+	l.Logger.Println(append([]interface{}{"[debug] "+l.getCurrentLine()+":"}, v...)...)
 }
 
 func (l *logger) Debugf(fmt string, v ...interface{}) {
-	l.Logger.Printf(fmt, v...)
+	l.Logger.Printf("[debug] "+l.getCurrentLine()+": "+fmt, v...)
 }
 
 func (l *logger) Warning(v ...interface{}) {
-	l.Logger.Print(v...)
+	l.Logger.Print(append([]interface{}{"[warning] "+l.getCurrentLine()+": "}, v...)...)
 }
 
 func (l *logger) Warningf(fmt string, v ...interface{}) {
-	l.Logger.Printf(fmt, v...)
+	l.Logger.Printf("[warning] "+l.getCurrentLine()+": "+fmt, v...)
 }
 
 func (l *logger) Errorf(fmt string, v ...interface{}) {
-	l.Logger.Printf(fmt, v...)
+	l.Logger.Printf("[error] "+l.getCurrentLine()+": "+fmt, v...)
 }
 
 func Fatal(v ...interface{}) {
