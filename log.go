@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/xaionaro-go/errors"
 )
 
 var _logger *logger
@@ -17,15 +19,15 @@ func init() {
 }
 
 func (l *logger) Fatal(v ...interface{}) {
-	l.Logger.Fatal(v...)
+	l.Logger.Fatal(append([]interface{}{"[fatal] "}, v...)...)
 }
 
 func (l *logger) Panic(v ...interface{}) {
-	l.Logger.Panic(v...)
+	l.Logger.Panic(append([]interface{}{"[panic] "}, v...)...)
 }
 
 func (l *logger) Debug(v ...interface{}) {
-	l.Logger.Print(v...)
+	l.Logger.Print(append([]interface{}{"[debug] "}, v...)...)
 }
 
 func (l *logger) Debugln(v ...interface{}) {
@@ -34,6 +36,10 @@ func (l *logger) Debugln(v ...interface{}) {
 
 func (l *logger) Debugf(fmt string, v ...interface{}) {
 	l.Logger.Printf(fmt, v...)
+}
+
+func (l *logger) Warning(v ...interface{}) {
+	l.Logger.Print(v...)
 }
 
 func (l *logger) Warningf(fmt string, v ...interface{}) {
@@ -64,10 +70,32 @@ func Debugf(fmt string, v ...interface{}) {
 	_logger.Debugf(fmt, v...)
 }
 
+func Warning(v ...interface{}) {
+	_logger.Warning(v...)
+}
+
 func Warningf(fmt string, v ...interface{}) {
 	_logger.Warningf(fmt, v...)
 }
 
 func Errorf(fmt string, v ...interface{}) {
 	_logger.Errorf(fmt, v...)
+}
+
+func (l *logger) anyWrapper(outFunc func(...interface{}), smartErrTmpl errors.SmartError, err error, args ...interface{}) error {
+	if err == nil && len(args) == 0 {
+		return nil
+	}
+
+	resultErr := smartErrTmpl.New(err, args...).SetCutOffFirstNLinesOfTraceback(13)
+	outFunc(resultErr.ErrorShort())
+	return resultErr
+}
+
+func (l *logger) WarningWrapper(smartErrTmpl errors.SmartError, err error, args ...interface{}) error {
+	return l.anyWrapper(l.Warning, smartErrTmpl, err, args...)
+}
+
+func WarningWrapper(smartErrTmpl errors.SmartError, err error, args ...interface{}) error {
+	return _logger.WarningWrapper(smartErrTmpl, err, args...)
 }
